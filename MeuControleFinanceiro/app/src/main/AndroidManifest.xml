@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Lembretes locais (Android 13+ exige permissão explícita). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Garantia de funcionamento 100% offline: remove a permissão de internet mesmo que
+         alguma biblioteca tente adicioná-la na fusão do manifesto. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+
+    <!-- allowBackup=false: dados financeiros não são enviados ao backup em nuvem do Android.
+         O usuário controla seus backups pela tela "Backup e restauração". -->
+    <application
+        android:name=".MeuControleApp"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MeuControle"
+        tools:targetApi="35">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
