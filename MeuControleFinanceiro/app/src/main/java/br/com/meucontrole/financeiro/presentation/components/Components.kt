@@ -274,7 +274,7 @@ fun <T> DropdownField(
 @Composable
 fun SuggestField(label: String, value: String, onValue: (String) -> Unit, suggestions: List<String>, modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(false) }
-    val filtered = suggestions.filter { value.isBlank() || it.contains(value, ignoreCase = true) }
+    val filtered = if (value.isBlank() || value in suggestions) suggestions else suggestions.filter { it.contains(value, ignoreCase = true) }
     ExposedDropdownMenuBox(expanded = expanded && filtered.isNotEmpty(), onExpandedChange = { expanded = it }, modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = value,
