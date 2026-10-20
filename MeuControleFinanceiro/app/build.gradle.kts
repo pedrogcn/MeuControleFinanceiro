@@ -1,91 +1,51 @@
-plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.devtools.ksp")
-}
+name: Compilar APK
 
-android {
-    namespace = "br.com.meucontrole.financeiro"
-    compileSdk = 35
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
 
-    defaultConfig {
-        applicationId = "br.com.meucontrole.financeiro"
-        minSdk = 26
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
+permissions:
+  contents: write
 
-    buildTypes {
-        debug {
-            applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
-        }
-        release {
-            isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-        }
-    }
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: MeuControleFinanceiro
+    steps:
+      - uses: actions/checkout@v4
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
 
-    kotlinOptions {
-        jvmTarget = "17"
-        freeCompilerArgs += listOf(
-            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
-            "-opt-in=androidx.compose.foundation.layout.ExperimentalLayoutApi",
-            "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi"
-        )
-    }
+      - name: Preparar assinatura fixa
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Segredo KEYSTORE_BASE64 não configurado em Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/meucontrole.jks"
 
-    buildFeatures {
-        compose = true
-    }
+      - name: Compilar APK
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/meucontrole.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          mv app/build/outputs/apk/release/app-release.apk "MeuControleFinanceiro-1.0.${{ github.run_number }}.apk"
 
-    packaging {
-        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
-    }
-
-    testOptions {
-        unitTests.isReturnDefaultValues = true
-    }
-}
-
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
-}
-
-dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
-    implementation(composeBom)
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.activity:activity-compose:1.9.3")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("androidx.navigation:navigation-compose:2.8.4")
-
-    val room = "2.6.1"
-    implementation("androidx.room:room-runtime:$room")
-    implementation("androidx.room:room-ktx:$room")
-    ksp("androidx.room:room-compiler:$room")
-
-    implementation("androidx.work:work-runtime-ktx:2.9.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-    // Usado apenas pela API JsonElement (sem plugin de compilação) para backup JSON local.
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
-}
+      - name: Publicar versão (Release)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Versão 1.0.${{ github.run_number }}
+          body: ${{ github.event.head_commit.message }}
+          files: MeuControleFinanceiro/MeuControleFinanceiro-1.0.${{ github.run_number }}.apk
